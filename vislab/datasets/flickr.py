@@ -6,6 +6,7 @@ Making my own dataset of Flickr data using groups.
 - handle multiple group ids per key
 """
 import urllib2
+import datetime
 import pandas as pd
 import numpy as np
 import json
@@ -33,17 +34,17 @@ styles = {
     'Hazy': ['38694591@N00'],
     'Vintage': ['1222306@N25'],
 }
-style_names = styles.keys()
+style_names = styles.keys() + [ 'Interesting' ]
 underscored_style_names = [
-    'style_' + style.replace(' ', '_') for style in styles.keys()]
+    'style_' + style.replace(' ', '_') for style in style_names ]
 
 # TODO: store in file that is not checked into github
 
 
 def populate_database(photos_per_style=1000):
     for style in styles:
-        vislab.datasets.get_photos_for_style(style, photos_per_style)
-
+        get_photos_for_style(style, photos_per_style)
+    get_photos_for_interesting( len( styles ) * photos_per_style )
 
 def load_flickr_df(num_images=-1, random_seed=42, force=False):
     """
@@ -84,8 +85,9 @@ def load_flickr_df(num_images=-1, random_seed=42, force=False):
         main_df = pd.read_pickle(filename)
 
     # Assign split information
-    main_df['_split'] = vislab.dataset.get_train_test_split(
-        main_df[underscored_style_names])
+    main_df = main_df.join( 
+        vislab.dataset.get_train_test_split( main_df[underscored_style_names] )
+    )
     # Also assign the few images that have multiple labels to test.
     main_df['_split'][main_df[underscored_style_names].sum(1) > 1] = 'test'
 
@@ -188,3 +190,87 @@ def get_photos_for_style(style, num_images=250):
         if page > page_data['photos']['pages']:
             print("Not enough pages to fill up to desired amount!")
             break
+
+def get_photos_for_interesting(num_images=250):
+    """
+    Parameters
+    ----------
+    num_images: int [500]
+        Fetch at most this many results.
+    """
+    print('\nget_photos_for_interesting')
+
+    # Establish connection with the MongoDB server.
+    client = vislab.util.get_mongodb_client()
+
+    # How many images are already in the database for this style?
+    collection = client['flickr']['Interesting']
+    collection.ensure_index('image_id')
+    collection_size = collection.find({'rejected': False}).count()
+
+    # How many new images do we need to obtain?
+    if num_images - collection_size < 1:
+        print("No new photos need to be fetched.")
+        return
+
+    # interestingness comuputed starting one day in the past
+    date = datetime.date.today() + datetime.timedelta( days=-1 )
+
+    params = {
+        'api_key': vislab.config['api_key'],
+        'date': date.isoformat(),
+        'per_page': 500,  # 500 is the maximum allowed
+        'content_type': 1,  # only photos
+    }
+
+    # The per_page parameter is not really respected by Flickr.
+    # Most of the time, we get less results than promised.
+    # Accordingly, we need to make a dynamic number of requests.
+    print("Old collection size: {}".format(collection_size))
+
+    page = 0
+    num_pages = np.inf
+    while collection_size < num_images and page < num_pages:
+        page += 1
+        params['page'] = page
+        url = 'http://api.flickr.com/services/rest/?method=flickr.interestingness.getList&format=json&nojsoncallback=1'
+        url += '&date={date}'
+        url += '&api_key={api_key}&content_type={content_type}&page={page}&per_page={per_page}'
+        url = url.format(**params)
+        print(url)
+
+        # Make the request and ensure it succeeds.
+        page_data = json.load(urllib2.urlopen(url))
+        if page_data['stat'] != 'ok':
+            raise Exception("Something is wrong: API returned {}".format(
+                page_data['stat']))
+
+        # Insert the photos into the database if they are not already in it.
+        photos = []
+        for photo in page_data['photos']['photo']:
+            image_id = 'f_' + photo['id']
+            if collection.find({'image_id': image_id}).limit(1).count() == 0:
+                photo['rejected'] = False
+                photo['image_id'] = image_id
+                photos.append(photo)
+        if len(photos) > 0:
+            collection.insert(photos[:(num_images - collection_size)])
+
+        # Update collection size
+        collection_size = collection.find({'rejected': False}).count()
+        print("New collection size: {}".format(collection_size))
+
+        not_enough = False
+
+        # If there are less total results than we need, quit at this point.
+        if page_data['photos']['total'] < num_images:
+            not_enough = True
+        elif page > page_data['photos']['pages']:
+            print("Not enough pages to fill up to desired amount!")
+            not_enough = True
+
+        if not_enough:
+            page = 0
+            num_pages = np.inf
+            date = date + datetime.timedelta( days=-1 )
+            params['date'] = date.isoformat()
