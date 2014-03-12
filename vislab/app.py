@@ -469,7 +469,7 @@ def image(dataset_name):
 
 if __name__ == '__main__':
     # Local dev
-    if os.path.exists('/Users/sergeyk'):
+    if os.path.exists('/Users/sergeyk') or os.path.exists('/Users/mmt'):
         app.run(debug=True, host='0.0.0.0', port=5000)
 
     # ICSI
