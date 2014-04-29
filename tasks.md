@@ -1,45 +1,49 @@
+## Ideas
+
+- Can dataset be equalized by content (to get unbiased style performance numbers)
+
+## Fixes
+
 ## Next
 
-Aphrodite integration
-- put Adobe copyright text in relevant files
-- integrate feature.py and _feature.py: right now, messy nesting
+- UI
+    - make the results server use Mongo (and then can populate dataframes from filtered results there)
+    - add basic results view to current UI
+    - add advanced results view: `source_dataset` support and so on
+    - restart data view server and launch on flapjack
 
-Features
-    - Switch to using caffe instead of decaf
+- Run the fusion of classes and features classification experiments
+    - Output pascal metaclass classifiers as features
+
+- Large-scale style-filtered search demo:
+    - compute fc6 features on a large set of pinterest images that don't overlap with my training set
+    - compute fc6 features on a large set of flickr interesting images
+
+Human classification accuracy:
+    - how good is a single person at predicting the style classification task? (Trent is running this on mech turk)
+
+- Replace classifier: VW -> caffe
+    - In feature.py, output to several HDF5 files (of max size 2GB) instead of just one.
+    - Modify Caffe to be able to take label file as separate from feature file.
+    - Modify Caffe to be able to take multiple feature files (should be easy, as separate layers)
+    - Be able to call caffe directly from Python
+
+- Generate Sphinx autodoc and display it on my doc page
+
+- Compute pairwise distances for images for different features
+
+- Features
     - whitened HOG feature (wrap Jon's code)
     - face detection
     - portrait and landscape classifiers: add to the PASCAL meta-class classifiers
     - make featurization server: gets filename, outputs result back on queue
-    - implement feature computation in vislab that computes multiple levels of decaf feature at once
     - implement presence of text classifier
 
-Classification experiments
-    - store bit_precision in the results table somewhere.
+- make memorability/interestingness dataset interface (aude's data with extra interestingness scores)
 
-Single-person classification accuracy:
-    - how good is a single person at predicting the style classification task? the ava task?
+- could be good figure: sort imagenet images for a few categories by beauty
 
-VW:
-    - get vector of weights from VW.
-        : in fact, need --inverse_hash to do this properly, and that seems to slow things down substantially (haven't tried though)
-    - revamp cross-validation to write all results to database to allow iterative improvement and visualizing the effects of the parameters
-    - implement a dot-product distance computation mode in vowpal wabbit that outputs all pairwise distances for the data points; if a model is provided, the distances are in the projected space. this will also implement the k-nn classifier.
-
-Evaluation
-    - average over multiple random subsets of test-balanced data
-
-Datasets
-    - make memorability/interestingness dataset interface (aude's data with extra interestingness scores)
-    - store widths and heights in database for better layout on client
-    - weight AVA examples according to inverse distance to mean (should work better than the delta method)
-
-Results analysis
-    - nice force-based layout graph of confusion matrix
-    - could be a good figure: sort imagenet images for a few categories by beauty
-    - to analyze the deep feature: see if you can regress to the color histogram feature from the deep feature
-
-Image search demo
-    - get tags for the flickr dataset
+- to analyze the deep feature: see if you can regress to the color histogram feature from the deep feature
 
 Similarity demo
     - add paintings data
@@ -53,8 +57,8 @@ New image demo
 
 Job queue system
     - launch workers separately from the script that submits jobs for them, but with their own script
-    - be able to kill workers with scancel
-    - report when workers get killed
+    - `map_through_rq` should keep track of succeeding jobs, not workers that it launched
+
 
 Misc
     - need util function for syncing up dataframe with mongodb collection. useful for datasets.
@@ -70,7 +74,3 @@ Image Recommendations
 
 Bugs to fix:
     - preds_panel seems to contain objects instead of floats! yet sorting and comparisons still work fine. get a handle on this.
-
-## Done
-
-x every occurrence of vislab.repo_dirname should be replaced by path in vislab.config

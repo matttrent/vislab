@@ -15,20 +15,26 @@ import operator
 import multiprocessing
 import vislab
 
+pascal_classes = [
+    'aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat',
+    'chair', 'cow', 'diningtable', 'dog', 'horse', 'motorbike', 'person',
+    'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor'
+]
+
 
 def get_image_filename_for_id(image_id):
     return '{}/JPEGImages/{}.jpg'.format(
         vislab.config['paths']['VOC'], image_id)
 
 
-def get_clf_df(VOCyear='VOC2012', force=False, args=None):
+def get_metaclass_df(VOCyear='VOC2012', force=False, args=None):
     """
-    Load the image classification data, with metaclasses.
+    Load the image classification data, computing 'metaclass' labels.
     """
     label_df, objects_df = load_pascal(VOCyear, force, args)
     label_df = label_df.fillna(False)
 
-    # Group classes into metaclasses as additional labels.
+    # Group classes into metaclasses.
     metaclasses = {
         'metaclass_animal': [
             'bird', 'cat', 'cow', 'dog', 'horse', 'sheep'
@@ -49,14 +55,35 @@ def get_clf_df(VOCyear='VOC2012', force=False, args=None):
         label_df[metaclass] = reduce(
             operator.or_, [label_df[c] for c in classes])
 
-    # Append c_ before every class other than the mc_ classes.
+    for class_ in pascal_classes:
+        del label_df[class_]
+
+    label_df['image_filename'] = [
+        '{}/JPEGImages/{}.jpg'.format(vislab.config['paths'][VOCyear], _)
+        for _ in label_df.index
+    ]
+    del label_df['_split']
+    return label_df
+
+
+def get_class_df(VOCyear='VOC2012', force=False, args=None):
+    """
+    Load the image classification data, with metaclasses.
+    """
+    label_df, objects_df = load_pascal(VOCyear, force, args)
+    label_df = label_df.fillna(False)
+
+    # Append class_ before every class.
     label_df.columns = [
-        'class_' + col
-        if not (col.startswith('metaclass_') or col.startswith('_'))
+        'class_' + col if col in pascal_classes
         else col
         for col in label_df.columns
     ]
-
+    label_df['image_filename'] = [
+        '{}/JPEGImages/{}.jpg'.format(vislab.config['paths'][VOCyear], _)
+        for _ in label_df.index
+    ]
+    del label_df['_split']
     return label_df
 
 
@@ -85,8 +112,7 @@ def load_pascal(VOCyear='VOC2012', force=False, args=None):
     Warning: this takes a few minutes to load from scratch!
     """
     if args is None:
-        # TODO: set this to number of cores on machine
-        args = {'num_workers': 8}
+        args = {'num_workers': multiprocessing.cpu_count()}
 
     cache_filename = \
         vislab.config['paths']['shared_data'] + \
@@ -164,11 +190,14 @@ def _load_pascal_annotation(filename):
             'class': str(get_data_from_tag(obj, "name")).lower().strip()
         }
         if obj.getElementsByTagName('pose'):
-            obj_data['pose'] = str(get_data_from_tag(obj, "pose")).lower().strip()
+            obj_data['pose'] = str(
+                get_data_from_tag(obj, "pose")).lower().strip()
         if obj.getElementsByTagName('difficult'):
-            obj_data['difficult'] = int(get_data_from_tag(obj, "difficult")) == 1
+            obj_data['difficult'] = int(
+                get_data_from_tag(obj, "difficult")) == 1
         if obj.getElementsByTagName('truncated'):
-            obj_data['truncated'] = int(get_data_from_tag(obj, "truncated")) == 1
+            obj_data['truncated'] = int(
+                get_data_from_tag(obj, "truncated")) == 1
 
         all_obj_data.append(obj_data)
     objects_df = pd.DataFrame(all_obj_data)
@@ -204,4 +233,4 @@ def _load_pascal_annotation(filename):
 
 
 if __name__ == '__main__':
-    get_clf_df(VOCyear='VOC2012', force=True)
+    get_class_df(VOCyear='VOC2012', force=True)

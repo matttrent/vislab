@@ -56,7 +56,7 @@ def map_through_rq(
     assert(chunk_size > 0)
 
     # Establish connection to Redis queue.
-    redis_conn = util.get_redis_conn()
+    redis_conn = util.get_redis_client()
     fq = rq.Queue('failed', connection=redis_conn)
     q = rq.Queue(name, connection=redis_conn, async=async)
 
@@ -72,7 +72,7 @@ def map_through_rq(
     t = time.time()
     if chunk_size > 1:
         chunked_args_list = [
-            (function, args_list[i:i+chunk_size])
+            (function, args_list[i:i + chunk_size])
             for i in range(0, len(args_list), chunk_size)
         ]
         jobs = [
@@ -97,14 +97,18 @@ def map_through_rq(
         print("Starting {} workers...".format(num_workers))
         cmd = "rqworker --burst {}".format(name)
         if util.running_on_icsi():
-            redis_hostname = 'flapjack'
-            job_log_dirname = util.makedirs(vislab.config['paths']['shared_data'] + '/rqworkers')
+            host, port = vislab.config['servers']['redis']
+            job_log_dirname = util.makedirs(
+                vislab.config['paths']['shared_data'] + '/rqworkers')
             cmd = "srun -p vision --cpus-per-task={} --mem={}".format(
                 cpus_per_task, mem)
             cmd += " --time={} --output={}/{}_%j-out.txt".format(
                 max_time, job_log_dirname, name)
-            cmd += " rqworker --host {} --burst {}".format(
-                redis_hostname, name)
+            if len(vislab.config['servers']['redis_exclude']) > 0:
+                cmd += " --exclude={}".format(
+                    vislab.config['servers']['redis_exclude'])
+            cmd += " rqworker --host {} --port {} --burst {}".format(
+                host, port, name)
         print(cmd)
         pids = []
         for i in range(num_workers):
@@ -131,7 +135,7 @@ def map_through_rq(
             sys.stdout.flush()
             if num_succeeded + num_failed == len(jobs):
                 break
-            time.sleep(2)
+            time.sleep(1)
         sys.stdout.write('\n')
         sys.stdout.flush()
     print('Done with all jobs.')
@@ -145,7 +149,7 @@ def map_through_rq(
     if aggregate:
         results = [job.result for job in jobs]
         if chunk_size > 1:
-            # Watch out for some jobs retuning None results.
+            # Watch out for some jobs returning None results.
             all_results = []
             for result in results:
                 if result is not None:
