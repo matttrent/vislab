@@ -63,14 +63,18 @@ table, caption, tbody, tfoot, thead, tr, th, td {
   vertical-align: baseline;
 }
 
-#data-scatterplot {
-  margin: auto;
-  width: 620px;
+label {
+  white-space:nowrap;
+}
+
+.above-images {
+  margin: 0 auto 1em auto;
+  width: 680px;
 }
 
 body {
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  font-weight: lighter;
+  font-weight: 300;
   font-size: 12px;
   line-height: 1.5em;
   color: #333333;
@@ -132,7 +136,6 @@ div {
 div.result {
   display: inline-block;
   margin: 5px;
-  font-size: .8em;
 }
 div.green {
   border: 3px solid yellowgreen;

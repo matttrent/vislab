@@ -1,0 +1,72 @@
+<!doctype html>
+<html>
+<head>
+    <title>VisLab: {{page_type}}</title>
+
+    <link href="/static/main.css" rel="stylesheet" type="text/css" />
+    <link rel="stylesheet" href="/static/font-awesome-4.0.3/css/font-awesome.min.css" />
+
+    <!-- <script src="/static/jquery-2.1.0.js"></script> -->
+    <script src="/static/jquery-2.1.0.min.js"></script>
+    <script>
+    $(document).ready(function() {
+        // The page-reloading function constructs the URL out of all
+        // the selectors' values.
+        var selection = function() {
+            var string = '';
+            {% for name, options, selected_value in select_options %}
+                string += '/' + $('#{{name}}').val();
+            {% endfor %}
+            window.location = '/{{page_type}}' + string;
+        };
+
+        // Assign the page-reloading function to all selectors.
+        {% for name, options, selected_value in select_options %}
+            $('#{{name}}').change(selection);
+        {% endfor %}
+    });
+    </script>
+</head>
+
+<body>
+<div class="container center">
+<h1>
+    <a href="/">VisLab</a>: {{page_type}}
+</h1>
+
+<div class="above-images">
+    {% for name, options, selected_value in select_options %}
+    <label>{{name}}
+    <select id="{{name}}">
+        {% for x in options %}
+            {% if selected_value == x %}
+                <option value="{{ x }}" selected>{{ x }}</option>
+            {% else %}
+                <option value="{{ x }}">{{ x }}</option>
+            {% endif %}
+        {% endfor %}
+    </select></label>
+    {% endfor %}
+</div>
+
+<div class="above-images">
+    {{start_results}} to {{end_results}} of {{num_results}} results | {{"%.3f"|format(time_elapsed)}} s
+
+</div>
+
+<div class="images">
+{% for image in images %}
+    <div class="result">
+        <!--<a href="{{image.page_url}}">--!>
+        <a href="/image/{{experiment}}/{{setting}}/{{style}}/{{image.index}}">
+            <img src="{{image.image_url}}" width="160px" />
+        </a>
+        <div>{{image.caption}}</div>
+    </div>
+{% endfor %}
+</div>
+
+</div>
+
+</body>
+</html>
